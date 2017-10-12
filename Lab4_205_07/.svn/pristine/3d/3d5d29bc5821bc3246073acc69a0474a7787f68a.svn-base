@@ -1,0 +1,208 @@
+package lab4_205_07.uwaterloo.ca.lab4_205_07;
+
+import android.content.Context;
+import android.graphics.Color;
+import android.util.Log;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+
+import lab4_205_07.uwaterloo.ca.lab4_205_07.FSM.State;
+import static lab4_205_07.uwaterloo.ca.lab4_205_07.FSM.State.*;
+
+public class GameBlock extends android.support.v7.widget.AppCompatImageView {
+
+    protected static final float SQUARE_OFFSET = 8f;
+    protected static final float SQUARE_SIZE = (Lab4_205_07.GAMEBOARD_DIMENSION-8)/4; //268px
+    protected static final float X_BOUND_RIGHT = SQUARE_SIZE*3+SQUARE_OFFSET;//Lab4_205_07.GAMEBOARD_DIMENSION-263;
+    protected static final float X_BOUND_LEFT = SQUARE_OFFSET;
+    protected static final float Y_BOUND_TOP = SQUARE_OFFSET;
+    protected static final float Y_BOUND_BOTTOM = SQUARE_SIZE*3+SQUARE_OFFSET;//Lab4_205_07.GAMEBOARD_DIMENSION-263;
+    private final int MAX_SPEED = 35;
+
+    protected int myValue = 2;
+    protected int currentSquare = 0;
+    private float myCoordX;
+    private float myCoordY;
+    private float myTargetCoordX;
+    private float myTargetCoordY;
+
+    protected TextView tv;
+    private static int TEXT_OFFSET = 100;
+
+    private State myDirection = resting;
+
+    private int velocity = 0;
+    private int acceleration = 5;
+    private final int ACCELERATION_CONST = 5;
+
+    public GameBlock(Context gbCTX,RelativeLayout rl, int coordX, int coordY, int currentSquare, float scale) {
+        super(gbCTX);
+        this.myCoordX = coordX;
+        this.myCoordY = coordY;
+        this.setX(myCoordX);
+        this.setY(myCoordY);
+        this.setImageResource(R.drawable.gameblock);
+        this.setScaleY(scale);
+        this.setScaleX(scale);
+        this.setPadding(0,0,0,0);
+
+        myTargetCoordX = myCoordX;
+        myTargetCoordY = myCoordY;
+        this.currentSquare = currentSquare;
+
+        tv = new TextView(gbCTX);
+        tv.setTextColor(Color.BLACK);
+        tv.setTextSize(25f);
+        tv.setText(Integer.toString(myValue));
+        rl.addView(tv);
+        tv.setX(myCoordX + TEXT_OFFSET);
+        tv.setY(myCoordY + TEXT_OFFSET-10);
+        tv.bringToFront();
+
+
+    }
+
+    public boolean isDoneMoving(){
+        if((int)this.myCoordY == (int)this.myTargetCoordY && (int)this.myCoordX == (int)this.myTargetCoordX)//Make sure the block is done its last move
+            return true;
+        else//If its not done just return
+            return false;
+    }
+
+    public int[] getCoord(){
+        int[] coord = new int[2];
+        coord[0] = (int) myCoordX;
+        coord[1] = (int) myCoordY;
+        return coord;
+    }
+
+    public void setDirection(State direction){
+
+        myDirection = direction;
+
+        //Update the target Coordinates and acceleration based on game direction
+        switch (myDirection){
+            case up:
+                myTargetCoordX = myCoordX;
+                myTargetCoordY = Y_BOUND_TOP;
+                acceleration = -ACCELERATION_CONST;
+
+                int blockCount = 0;
+
+                float testCoord = GameBlock.Y_BOUND_TOP;
+                GameBlock testBlock;
+                while((int) testCoord != (int) myCoordY){
+                    testBlock = GameLoopTask.isOccupied((int)myCoordX, (int)testCoord);
+
+                    if(testBlock != null){
+                        blockCount++;
+                    }
+                    testCoord += SQUARE_SIZE;
+                }
+
+                    myTargetCoordY = Y_BOUND_TOP + blockCount*SQUARE_SIZE;
+                    Log.i("block ", currentSquare + " has " + blockCount + " blocks in its way") ;
+                break;
+            case left:
+                myTargetCoordX = X_BOUND_LEFT;
+                myTargetCoordY = myCoordY;
+                acceleration = -ACCELERATION_CONST;
+                break;
+            case right:
+                myTargetCoordX = SQUARE_SIZE*3 + 8;//X_BOUND_RIGHT
+                myTargetCoordY = myCoordY;
+                acceleration = ACCELERATION_CONST;
+                break;
+            case down:
+                myTargetCoordX = myCoordX;
+                myTargetCoordY = Y_BOUND_BOTTOM;
+                acceleration = ACCELERATION_CONST;
+                break;
+            default://If in resting state or undefined just set target to current
+                velocity = 0;
+                myTargetCoordX = myCoordX;
+                myTargetCoordY = myCoordY;
+                break;
+        }
+    }
+
+    public void move(){
+
+        //Cap velocity at 35px / frame (Account for the direction we are moving)
+        if(acceleration > 0 && velocity < MAX_SPEED)
+            velocity += acceleration;
+        else if(acceleration < 0 && velocity > -MAX_SPEED)
+            velocity += acceleration;
+
+        //update current X and Y coordinates based on game direction. If we are at the target coordinates  don't move and set velocity = 0
+        switch (myDirection){
+            case up:
+                if(myCoordY > myTargetCoordY){//If haven't reached target
+                    if((myCoordY + velocity) < myTargetCoordY)//make sure you don't overshoot
+                        myCoordY = myTargetCoordY;
+                    else
+                        myCoordY += velocity;
+                }else{//If reached target don't move
+                    myCoordY = myTargetCoordY;
+                    velocity = 0;
+                }
+                break;
+            case left:
+                if(myCoordX > myTargetCoordX){
+                    if((myCoordX + velocity) < myTargetCoordX)
+                        myCoordX = myTargetCoordX;
+                    else
+                        myCoordX += velocity;
+                }else{
+                    myCoordX = myTargetCoordX;
+                    velocity = 0;
+                }
+                break;
+            case right:
+                if(myCoordX < myTargetCoordX){
+                    if((myCoordX + velocity) > myTargetCoordX)
+                        myCoordX = myTargetCoordX;
+                    else
+                        myCoordX += velocity;
+                }else{
+                    myCoordX = myTargetCoordX;
+                    velocity = 0;
+                }
+                break;
+            case down:
+                if(myCoordY < myTargetCoordY){
+                    if((myCoordY + velocity) > myTargetCoordY)
+                        myCoordY = myTargetCoordY;
+                    else
+                        myCoordY += velocity;
+                }else{
+                    myCoordY = myTargetCoordY;
+                    velocity = 0;
+                }
+                break;
+            default://If in resting state or undefined just set target to current and velocity equal to 0
+                velocity = 0;
+                myTargetCoordX = myCoordX;
+                myTargetCoordY = myCoordY;
+                break;
+        }
+
+        //Update the blocks position on the screen
+        this.setX(myCoordX);
+        this.setY(myCoordY);
+        tv.setX(myCoordX + TEXT_OFFSET);
+        tv.setY(myCoordY + TEXT_OFFSET-10);
+        tv.bringToFront();
+
+        //Update current square value
+        for (int i = 0; i < 16; i++) {
+            if(myCoordX == GameLoopTask.squareCoordinateLookUp[i].x && myCoordY == GameLoopTask.squareCoordinateLookUp[i].y){
+                currentSquare = i+1;
+                break;
+            }
+        }
+
+        tv.setText(Integer.toString(currentSquare));
+    }
+}

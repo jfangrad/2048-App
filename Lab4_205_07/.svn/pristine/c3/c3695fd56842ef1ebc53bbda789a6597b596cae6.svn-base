@@ -1,0 +1,69 @@
+package lab4_205_07.uwaterloo.ca.lab4_205_07;
+
+import android.app.Activity;
+import android.content.Context;
+import android.widget.RelativeLayout;
+import java.util.LinkedList;
+import java.util.TimerTask;
+import lab4_205_07.uwaterloo.ca.lab4_205_07.FSM.State;
+import static lab4_205_07.uwaterloo.ca.lab4_205_07.FSM.State.*;
+
+
+public class GameLoopTask extends TimerTask {
+
+    private Activity myActivity;
+    private Context context;
+    private RelativeLayout rl;
+    private State current = resting;
+
+    protected LinkedList<GameBlock> blocks = new LinkedList<>();
+
+    GameLoopTask(Activity myActivity, RelativeLayout rl, Context context){
+        this.myActivity = myActivity;
+        this.rl = rl;
+        this.context = context;
+        blocks.add(createBlock(8,8));
+        blocks.add(createBlock((int)GameBlock.SQUARE_SIZE*2+8, (int)GameBlock.SQUARE_SIZE*2+8));
+    }
+
+    @Override
+    public void run() {
+
+        myActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                for (GameBlock block:blocks) {
+                    block.move(); //Update the block
+                }
+
+            }
+        });
+
+    }
+
+    //Function creates a new GameBlock object and returns its reference
+    private GameBlock createBlock(int x, int y){
+        GameBlock gameBlock = new GameBlock(context, rl, x, y, 0.9f);
+        rl.addView(gameBlock);
+        return gameBlock;
+    }
+
+    //Function sets the games direction
+    public void setDirection(State direction){
+        current = direction;
+
+        boolean movementDone = true;
+
+        for(GameBlock block: blocks){
+            if(!block.isDoneMoving())
+                movementDone = false;
+        }
+
+        if(movementDone){
+            for (GameBlock block: blocks) {
+                block.setDirection(current);
+            }
+        }
+    }
+}
